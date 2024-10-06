@@ -130,3 +130,6 @@ lib/
 # React Native Codegen
 ios/generated
 android/generated
+
+package-lock.json
+yarn.lock
