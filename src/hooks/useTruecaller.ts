@@ -17,6 +17,12 @@ import {
   TRUECALLER_ANDROID_EVENTS,
   TRUECALLER_IOS_EVENTS,
   TRUECALLER_API_URLS,
+  DEFAULT_BUTTON_TEXT_COLOR,
+  DEFAULT_BUTTON_COLOR,
+  DEFAULT_BUTTON_SHAPE,
+  DEFAULT_BUTTON_TEXT,
+  DEFAULT_CONSENT_HEADING,
+  DEFAULT_FOOTER_BUTTON_TEXT,
 } from '../constants';
 
 const TruecallerAndroidModule = NativeModules.TruecallerModule;
@@ -43,7 +49,19 @@ export const useTruecaller = (
       }
 
       if (Platform.OS === 'android') {
-        await TruecallerAndroidModule.initializeSdk(config);
+        const androidConfig = {
+          ...config,
+          androidButtonColor: config.androidButtonColor || DEFAULT_BUTTON_COLOR,
+          androidButtonTextColor:
+            config.androidButtonTextColor || DEFAULT_BUTTON_TEXT_COLOR,
+          androidButtonText: config.androidButtonText || DEFAULT_BUTTON_TEXT,
+          androidButtonShape: config.androidButtonShape || DEFAULT_BUTTON_SHAPE,
+          androidFooterButtonText:
+            config.androidFooterButtonText || DEFAULT_FOOTER_BUTTON_TEXT,
+          androidConsentHeading:
+            config.androidConsentHeading || DEFAULT_CONSENT_HEADING,
+        };
+        await TruecallerAndroidModule.initializeSdk(androidConfig);
       } else {
         await TruecallerIOS.initializeSdk(config);
       }
@@ -149,12 +167,20 @@ export const useTruecaller = (
     codeVerifier: string
   ): Promise<string> => {
     const clientId = config.androidClientId;
-    const response = await axios.post(TRUECALLER_API_URLS.TOKEN_URL, {
-      grant_type: 'authorization_code',
-      client_id: clientId,
-      code: authorizationCode,
-      code_verifier: codeVerifier,
-    });
+    const response = await axios.post(
+      TRUECALLER_API_URLS.TOKEN_URL,
+      {
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        code: authorizationCode,
+        code_verifier: codeVerifier,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
+    );
     return response.data.access_token;
   };
 
