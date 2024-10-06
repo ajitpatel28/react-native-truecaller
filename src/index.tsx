@@ -1,22 +1,24 @@
-import { NativeModules, Platform } from 'react-native';
+export { useTruecaller } from './hooks/useTruecaller';
 
-const LINKING_ERROR =
-  `The package '@ajit/react-native-truecaller' doesn't seem to be linked. Make sure: \n\n` +
-  Platform.select({ ios: "- You have run 'pod install'\n", default: '' }) +
-  '- You rebuilt the app after installing the package\n' +
-  '- You are not using Expo Go\n';
+export {
+  TRUECALLER_ANDROID_CUSTOMIZATIONS,
+  TRUECALLER_ANDROID_EVENTS,
+  TRUECALLER_IOS_EVENTS,
+  TRUECALLER_LANGUAGES,
+} from './constants';
 
-const ReactNativeTruecaller = NativeModules.ReactNativeTruecaller
-  ? NativeModules.ReactNativeTruecaller
-  : new Proxy(
-      {},
-      {
-        get() {
-          throw new Error(LINKING_ERROR);
-        },
-      }
-    );
-
-export function multiply(a: number, b: number): Promise<number> {
-  return ReactNativeTruecaller.multiply(a, b);
-}
+export type {
+  TruecallerConfig,
+  TruecallerUserProfile,
+  TruecallerAndroidResponse,
+  TruecallerIOSResponse,
+  UseTruecallerResult,
+  TruecallerButtonTextKey,
+  TruecallerButtonTextValue,
+  TruecallerButtonShapeKey,
+  TruecallerButtonShapeValue,
+  TruecallerFooterButtonTextKey,
+  TruecallerFooterButtonTextValue,
+  TruecallerConsentHeadingKey,
+  TruecallerConsentHeadingValue,
+} from './interfaces';

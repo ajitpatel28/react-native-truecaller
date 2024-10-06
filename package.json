@@ -1,5 +1,5 @@
 {
-  "name": "@ajit/react-native-truecaller",
+  "name": "@ajitpatel28/react-native-truecaller",
   "version": "0.1.0",
   "description": "Truecaller Integration with React Native for both Android[SDK v3.0.0] and IOS[SDK v0.1.8]",
   "source": "./src/index.tsx",
@@ -36,7 +36,7 @@
     "!**/.*"
   ],
   "scripts": {
-    "example": "yarn workspace @ajit/react-native-truecaller-example",
+    "example": "yarn workspace @ajitpatel28/react-native-truecaller-example",
     "test": "jest",
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
@@ -46,8 +46,24 @@
   },
   "keywords": [
     "react-native",
+    "truecaller",
+    "authentication",
+    "phone-verification",
+    "mobile-number",
+    "sdk",
+    "android",
     "ios",
-    "android"
+    "react-native-truecaller",
+    "react-native-truecaller-oAuth",
+    "react-native-truecaller-login",
+    "react-native-truecaller-integration",
+    "react-native-truecaller-sdk",
+    "react-native-truecaller-sdk-3.0.1",
+    "react-native-truecaller-sdk-0.1.8",
+    "react-native-truecaller-login-integration",
+    "react-native-truecaller-mobile-sdk",
+    "react-native-truecaller-user-verification",
+    "react-native-truecaller-identity-verification"
   ],
   "repository": {
     "type": "git",
@@ -183,5 +199,8 @@
     "type": "module-legacy",
     "languages": "kotlin-objc",
     "version": "0.41.1"
+  },
+  "dependencies": {
+    "axios": "^1.7.7"
   }
 }

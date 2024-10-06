@@ -1,12 +1,10 @@
-
-#ifdef RCT_NEW_ARCH_ENABLED
-#import "RNReactNativeTruecallerSpec.h"
-
-@interface ReactNativeTruecaller : NSObject <NativeReactNativeTruecallerSpec>
-#else
 #import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
+#import <TrueSDK/TrueSDK.h>
 
-@interface ReactNativeTruecaller : NSObject <RCTBridgeModule>
-#endif
+@interface ReactNativeTruecaller : RCTEventEmitter <RCTBridgeModule, TCTrueSDKDelegate>
+
++ (BOOL)handleUserActivity:(NSUserActivity *)userActivity
+        restorationHandler:(void (^)(NSArray *restorableObjects))restorationHandler;
 
 @end
