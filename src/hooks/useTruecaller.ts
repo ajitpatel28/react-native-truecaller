@@ -210,7 +210,7 @@ export const useTruecaller = (
         if (!config.androidClientId) {
           throw new Error('Android client ID is required for Android platform');
         }
-        await TruecallerAndroidModule.requestAuthorizationCode(config);
+        await TruecallerAndroidModule.requestAuthorizationCode();
       } else {
         if (!config.iosAppKey || !config.iosAppLink) {
           throw new Error(
