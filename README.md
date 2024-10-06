@@ -1,4 +1,4 @@
-# @ajit/react-native-truecaller
+# @ajitpatel28/react-native-truecaller
 
 Truecaller Integration with React Native for both Android [SDK v3.0.1] and iOS [SDK v0.1.8]
 
@@ -12,9 +12,9 @@ Truecaller Integration with React Native for both Android [SDK v3.0.1] and iOS [
 ## Installation
 
 ```sh
-npm install @ajit/react-native-truecaller
+npm install @ajitpatel28/react-native-truecaller
 # or
-yarn add @ajit/react-native-truecaller
+yarn add @ajitpatel28/react-native-truecaller
 ```
 
 ## Setup
@@ -26,7 +26,7 @@ To generate a client ID, follow the instructions in the [Truecaller IOS Guide](h
 1. Add the following to your `Podfile`:
 
 ```ruby
-pod '@ajit/react-native-truecaller', :path => '../node_modules/@ajit/react-native-truecaller'
+pod '@ajitpatel28/react-native-truecaller', :path => '../node_modules/@ajitpatel28/react-native-truecaller'
 ```
 
 2. Run `pod install` in your iOS directory.
@@ -36,12 +36,12 @@ pod '@ajit/react-native-truecaller', :path => '../node_modules/@ajit/react-nativ
 ```xml
 <key>CFBundleURLTypes</key>
 <array>
-  <dict>
-    <key>CFBundleURLSchemes</key>
-    <array>
-      <string>truecallersdk-{YOUR_APP_ID}</string>
-    </array>
-  </dict>
+<dict>
+  <key>CFBundleURLSchemes</key>
+  <array>
+    <string>truecallersdk-{YOUR_APP_ID}</string>
+  </array>
+</dict>
 </array>
 ```
 
@@ -52,15 +52,15 @@ Replace `{YOUR_APP_ID}` with your actual Truecaller App ID.
 ```xml
 <key>LSApplicationQueriesSchemes</key>
 <array>
-  <string>truesdk</string>
+<string>truesdk</string>
 </array>
 ```
 
 5. Add the associated domain provided by Truecaller:
-   - In Xcode, go to your project's target
-   - Select the "Signing & Capabilities" tab
-   - Click on "+ Capability" and add "Associated Domains"
-   - Add the domain provided by Truecaller with the "applinks:" prefix
+  - In Xcode, go to your project's target
+  - Select the "Signing & Capabilities" tab
+  - Click on "+ Capability" and add "Associated Domains"
+  - Add the domain provided by Truecaller with the "applinks:" prefix
 
    For example: `applinks:your-provided-domain.com`
 
@@ -74,8 +74,8 @@ To generate a client ID, follow the instructions in the [Truecaller Android Guid
 
 ```xml
 <meta-data
-    android:name="com.truecaller.android.sdk.ClientId"
-    android:value="YOUR_CLIENT_ID" />
+  android:name="com.truecaller.android.sdk.ClientId"
+  android:value="YOUR_CLIENT_ID" />
 ```
 
 Replace `YOUR_CLIENT_ID` with your actual Truecaller client ID.
@@ -89,35 +89,52 @@ Replace `YOUR_CLIENT_ID` with your actual Truecaller client ID.
 ## Usage
 
 ```typescript
-import { useTruecaller } from '@ajit/react-native-truecaller';
-
-const MyComponent = () => {
-  const { initializeTruecaller, requestTruecallerProfile } = useTruecaller({
+mport React, { useEffect } from 'react';
+import { View, Button } from 'react-native';
+import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
+const TruecallerLoginComponent = () => {
+  const {
+    initializeSDK,
+    openTruecallerForVerification,
+    userProfile,
+    error
+  } = useTruecaller({
     androidClientId: 'YOUR_ANDROID_CLIENT_ID',
     iosAppKey: 'YOUR_IOS_APP_KEY',
     iosAppLink: 'YOUR_IOS_APP_LINK',
   });
-
   useEffect(() => {
-    // Initialize Truecaller SDK
-    initializeTruecaller();
+// Initialize the Truecaller SDK when the component mounts
+    initializeSDK();
   }, []);
-
   const handleTruecallerLogin = async () => {
     try {
-      const profile = await requestTruecallerProfile();
-      console.log('Truecaller profile:', profile);
-      // Handle successful login
-    } catch (error) {
-      console.error('Truecaller login error:', error);
-      // Handle error
+      await openTruecallerForVerification();
+// The userProfile will be updated automatically if verification is successful
+    } catch (err) {
+      console.error('Truecaller login error:', err);
+// Handle error
     }
   };
-
+  useEffect(() => {
+    if (userProfile) {
+      console.log('Truecaller profile:', userProfile);
+// Handle successful login, e.g., navigate to a new screen or update app state
+    }
+  }, [userProfile]);
+  useEffect(() => {
+    if (error) {
+      console.error('Truecaller error:', error);
+// Handle error, e.g., show an error message to the user
+    }
+  }, [error]);
   return (
-    <Button title="Login with Truecaller" onPress={handleTruecallerLogin} />
-  );
+    <View>
+      <Button title="Login with Truecaller" onPress={handleTruecallerLogin} />
+  </View>
+);
 };
+export default TruecallerLoginComponent;
 ```
 
 ## API
@@ -156,7 +173,7 @@ import {
   TRUECALLER_ANDROID_EVENTS,
   TRUECALLER_IOS_EVENTS,
   TRUECALLER_LANGUAGES,
-} from '@ajit/react-native-truecaller';
+} from '@ajitpatel28/react-native-truecaller';
 ```
 
 These constants include options for button styles, consent modes, event types, and supported languages.
