@@ -191,7 +191,7 @@ export const useTruecaller = (
     }) as TruecallerUserProfile;
 
   const isSdkUsable = () => {
-    if (Platform.OS === 'android') return TruecallerAndroidModule.isUsable();
+    if (Platform.OS === 'android') return TruecallerAndroidModule.isSdkUsable();
     else if (Platform.OS === 'ios') return TruecallerIOS.isSupported();
     return false;
   };
