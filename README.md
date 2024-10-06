@@ -89,7 +89,7 @@ Replace `YOUR_CLIENT_ID` with your actual Truecaller client ID.
 ## Usage
 
 ```typescript
-mport React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { View, Button } from 'react-native';
 import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
 const TruecallerLoginComponent = () => {
