@@ -132,4 +132,3 @@ ios/generated
 android/generated
 
 package-lock.json
-yarn.lock
