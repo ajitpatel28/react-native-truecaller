@@ -1,6 +1,7 @@
 # @ajitpatel28/react-native-truecaller
 
-Truecaller Integration with React Native for both Android [SDK v3.0.1] and iOS [SDK v0.1.8]
+
+React Native library for seamless Truecaller integration, supporting Android SDK v3.0.1 and iOS SDK v0.1.8
 
 ## Features
 
@@ -75,7 +76,7 @@ To generate a client ID, follow the instructions in the [Truecaller Android Guid
 ```xml
 <meta-data
   android:name="com.truecaller.android.sdk.ClientId"
-  android:value="YOUR_CLIENT_ID" />
+  android:value="YOUR_CLIENT_ID"/>
 ```
 
 Replace `YOUR_CLIENT_ID` with your actual Truecaller client ID.
