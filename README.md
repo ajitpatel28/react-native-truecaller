@@ -3,6 +3,8 @@
 
 React Native library for seamless Truecaller integration, supporting Android SDK v3.0.1 and iOS SDK v0.1.8
 
+###### Note: Ios stil need fixes, will be updating soon, any contributions are welcomed. 
+
 ## Features
 
 - Easy integration with Truecaller SDK for both Android and iOS
