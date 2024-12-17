@@ -94,7 +94,7 @@ public class TruecallerModule extends ReactContextBaseJavaModule {
             promise.reject("ERROR", e.getMessage());
         }
     }
-    
+
 private TcSdkOptions buildSdkOptions(ReadableMap config) {
     TcSdkOptions.Builder sdkOptionsBuilder = new TcSdkOptions.Builder(reactContext, oauthCallback);
 
@@ -114,13 +114,13 @@ private TcSdkOptions buildSdkOptions(ReadableMap config) {
         String buttonShape = config.getString("buttonShape");
         sdkOptionsBuilder.buttonShapeOptions(mapButtonShape(buttonShape));
     }
-    if (config.hasKey("footerText")) {
-        String footerText = config.getString("footerText");
-        sdkOptionsBuilder.footerType(mapFooterText(footerText));
+    if (config.hasKey("footerButtonText")) {
+        String footerButtonText = config.getString("footerButtonText");
+        sdkOptionsBuilder.footerType(mapFooterText(footerButtonText));
     }
     if (config.hasKey("consentHeading")) {
         String consentHeading = config.getString("consentHeading");
-        sdkOptionsBuilder.consentTitleOption(mapConsentHeading(consentHeading));
+        sdkOptionsBuilder.consentHeadingOption(mapConsentHeading(consentHeading));
     }
 
     TcSdkOptions sdkOptions = sdkOptionsBuilder.build();
@@ -200,21 +200,23 @@ private TcSdkOptions buildSdkOptions(ReadableMap config) {
     }
 
     private int mapButtonShape(String buttonShape) {
-        if ("TRUECALLER_ANDROID_BUTTON_RECTANGLE".equals(buttonShape)) {
-            return TcSdkOptions.BUTTON_SHAPE_RECTANGLE;
-        }
-        return TcSdkOptions.BUTTON_SHAPE_ROUNDED;
+         switch (buttonShape) {
+            case "TRUECALLER_ANDROID_BUTTON_SHAPE_RECTANGLE":
+                return TcSdkOptions.BUTTON_SHAPE_RECTANGLE;
+            default:
+                return TcSdkOptions.BUTTON_SHAPE_ROUNDED;
+      }
     }
 
     private int mapFooterText(String footerText) {
         switch (footerText) {
-            case "TRUECALLER_ANDROID_FOOTER_BUTTON_TEXT_ANOTHER_MOBILE_NUMBER":
+            case "TRUECALLER_ANDROID_FOOTER_BUTTON_ANOTHER_MOBILE_NUMBER":
                 return TcSdkOptions.FOOTER_TYPE_ANOTHER_MOBILE_NO;
-            case "TRUECALLER_ANDROID_FOOTER_BUTTON_TEXT_ANOTHER_METHOD":
+            case "TRUECALLER_ANDROID_FOOTER_BUTTON_ANOTHER_METHOD":
                 return TcSdkOptions.FOOTER_TYPE_ANOTHER_METHOD;
-            case "TRUECALLER_ANDROID_FOOTER_BUTTON_TEXT_MANUALLY":
+            case "TRUECALLER_ANDROID_FOOTER_BUTTON_MANUALLY":
                 return TcSdkOptions.FOOTER_TYPE_MANUALLY;
-            case "TRUECALLER_ANDROID_FOOTER_BUTTON_TEXT_LATER":
+            case "TRUECALLER_ANDROID_FOOTER_BUTTON_LATER":
                 return TcSdkOptions.FOOTER_TYPE_LATER;
             default:
                 return TcSdkOptions.FOOTER_TYPE_SKIP;
@@ -223,53 +225,53 @@ private TcSdkOptions buildSdkOptions(ReadableMap config) {
 
     private int mapConsentHeading(String consentHeading) {
         switch (consentHeading) {
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_SIGN_UP_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_SIGN_UP_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_SIGN_UP_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_SIGN_IN_TO":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_SIGN_IN_TO":
                 return TcSdkOptions.SDK_CONSENT_HEADING_SIGN_IN_TO;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_VERIFY_NUMBER_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_VERIFY_NUMBER_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_VERIFY_NUMBER_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_REGISTER_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_REGISTER_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_REGISTER_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_GET_STARTED_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_GET_STARTED_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_GET_STARTED_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_PROCEED_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_PROCEED_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_PROCEED_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_VERIFY_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_VERIFY_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_VERIFY_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_VERIFY_PROFILE_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_VERIFY_PROFILE_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_VERIFY_PROFILE_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_VERIFY_YOUR_PROFILE_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_VERIFY_YOUR_PROFILE_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_VERIFY_YOUR_PROFILE_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_VERIFY_PHONE_NO_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_VERIFY_PHONE_NO_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_VERIFY_PHONE_NO_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_VERIFY_YOUR_NO_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_VERIFY_YOUR_NO_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_VERIFY_YOUR_NO_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_CONTINUE_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_CONTINUE_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_CONTINUE_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_COMPLETE_ORDER_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_COMPLETE_ORDER_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_COMPLETE_ORDER_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_PLACE_ORDER_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_PLACE_ORDER_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_PLACE_ORDER_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_COMPLETE_BOOKING_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_COMPLETE_BOOKING_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_COMPLETE_BOOKING_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_CHECKOUT_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_CHECKOUT_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_CHECKOUT_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_MANAGE_DETAILS_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_MANAGE_DETAILS_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_MANAGE_DETAILS_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_MANAGE_YOUR_DETAILS_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_MANAGE_YOUR_DETAILS_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_MANAGE_YOUR_DETAILS_WITH;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_LOGIN_TO_WITH_ONE_TAP":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_LOGIN_TO_WITH_ONE_TAP":
                 return TcSdkOptions.SDK_CONSENT_HEADING_LOGIN_TO_WITH_ONE_TAP;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_SUBSCRIBE_TO":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_SUBSCRIBE_TO":
                 return TcSdkOptions.SDK_CONSENT_HEADING_SUBSCRIBE_TO;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_GET_UPDATES_FROM":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_GET_UPDATES_FROM":
                 return TcSdkOptions.SDK_CONSENT_HEADING_GET_UPDATES_FROM;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_CONTINUE_READING_ON":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_CONTINUE_READING_ON":
                 return TcSdkOptions.SDK_CONSENT_HEADING_CONTINUE_READING_ON;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_GET_NEW_UPDATES_FROM":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_GET_NEW_UPDATES_FROM":
                 return TcSdkOptions.SDK_CONSENT_HEADING_GET_NEW_UPDATES_FROM;
-            case "TRUECALLER_ANDROID_CONSENT_HEADING_TEXT_LOGIN_SIGNUP_WITH":
+            case "TRUECALLER_ANDROID_CONSENT_HEADING_LOGIN_SIGNUP_WITH":
                 return TcSdkOptions.SDK_CONSENT_HEADING_LOGIN_SIGNUP_WITH;
             default:
                 return TcSdkOptions.SDK_CONSENT_HEADING_LOG_IN_TO;

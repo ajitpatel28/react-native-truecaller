@@ -8,7 +8,7 @@ import {
 
 export default function App() {
   const truecallerConfig = {
-    androidClientId: '3e53mmvn8pxyb-1w8s4b1lv7-xzkh2bak3uzrij4vha',
+    androidClientId: 'xxxxxxxx-android-client-id',
     androidButtonColor: '#212121',
     androidButtonTextColor: '#FFFFFF',
     androidButtonStyle: TRUECALLER_ANDROID_CUSTOMIZATIONS.BUTTON_SHAPES.ROUNDED,

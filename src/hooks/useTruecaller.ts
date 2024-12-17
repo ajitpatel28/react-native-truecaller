@@ -54,7 +54,6 @@ export const useTruecaller = (
 
       if (Platform.OS === 'android') {
         const androidConfig = {
-          ...config,
           buttonColor: config.androidButtonColor || DEFAULT_BUTTON_COLOR,
           buttonTextColor:
             config.androidButtonTextColor || DEFAULT_BUTTON_TEXT_COLOR,
