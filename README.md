@@ -3,7 +3,7 @@
 
 React Native library for seamless Truecaller integration, supporting Android SDK v3.0.1 and iOS SDK v0.1.8
 
-###### Note: Ios stil need fixes, will be updating soon, any contributions are welcomed. 
+###### Note: Ios stil need fixes, will be updating soon, any contributions are welcomed.
 
 ## Features
 
@@ -97,7 +97,7 @@ import { View, Button } from 'react-native';
 import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
 const TruecallerLoginComponent = () => {
   const {
-    initializeSDK,
+    initializeTruecallerSDK,
     openTruecallerForVerification,
     userProfile,
     error
@@ -108,7 +108,7 @@ const TruecallerLoginComponent = () => {
   });
   useEffect(() => {
 // Initialize the Truecaller SDK when the component mounts
-    initializeSDK();
+    initializeTruecallerSDK();
   }, []);
   const handleTruecallerLogin = async () => {
     try {
@@ -161,8 +161,13 @@ A custom hook that provides access to Truecaller functionality.
 
 #### Returns
 
-- `initializeTruecaller(): Promise<void>`: Initializes the Truecaller SDK.
-- `requestTruecallerProfile(): Promise<TruecallerUserProfile>`: Requests the user's Truecaller profile.
+- `initializeSDK(): Promise<void>`: Initializes the Truecaller SDK.
+- `isTrucallerInitialized: boolean`: Returns true if the Truecaller SDK is initialized.
+- `androidAuthorizationData: {
+  codeVerifier: string | null;
+  authorizationCode: string | null;
+  };`: Returns codeVerifier and authorizationCode for Android and null for iOS.
+- `openTruecallerForVerification(): Promise<void>`: Requests the user's Truecaller verification.
 - `userProfile`: The user's Truecaller profile (if available).
 - `error`: Any error that occurred during the Truecaller operations.
 

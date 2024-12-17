@@ -101,6 +101,11 @@ export interface TruecallerIOSResponse {
 export interface UseTruecallerResult {
   userProfile: TruecallerUserProfile | null;
   error: string | null;
-  initializeSDK: () => Promise<void>;
+  isTruecallerInitialized: boolean;
+  initializeTruecallerSDK: () => Promise<void>;
+  androidAuthorizationData: {
+    codeVerifier: string | null;
+    authorizationCode: string | null;
+  };
   openTruecallerForVerification: () => Promise<void>;
 }

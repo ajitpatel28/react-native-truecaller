@@ -35,9 +35,13 @@ export const useTruecaller = (
     null
   );
   const [error, setError] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isTruecallerInitialized, setIsTruecallerInitialized] = useState(false);
+  const [androidAuthorizationData, setAndroidAuthorizationData] = useState<{
+    codeVerifier: string | null;
+    authorizationCode: string | null;
+  }>({ codeVerifier: null, authorizationCode: null });
 
-  const initializeSDK = useCallback(async () => {
+  const initializeTruecallerSDK = useCallback(async () => {
     try {
       if (Platform.OS === 'android' && !config.androidClientId) {
         throw new Error('Android client ID is required for Android platform');
@@ -51,25 +55,25 @@ export const useTruecaller = (
       if (Platform.OS === 'android') {
         const androidConfig = {
           ...config,
-          androidButtonColor: config.androidButtonColor || DEFAULT_BUTTON_COLOR,
-          androidButtonTextColor:
+          buttonColor: config.androidButtonColor || DEFAULT_BUTTON_COLOR,
+          buttonTextColor:
             config.androidButtonTextColor || DEFAULT_BUTTON_TEXT_COLOR,
-          androidButtonText: config.androidButtonText || DEFAULT_BUTTON_TEXT,
-          androidButtonShape: config.androidButtonShape || DEFAULT_BUTTON_SHAPE,
-          androidFooterButtonText:
+          buttonText: config.androidButtonText || DEFAULT_BUTTON_TEXT,
+          buttonShape: config.androidButtonShape || DEFAULT_BUTTON_SHAPE,
+          footerButtonText:
             config.androidFooterButtonText || DEFAULT_FOOTER_BUTTON_TEXT,
-          androidConsentHeading:
+          consentHeading:
             config.androidConsentHeading || DEFAULT_CONSENT_HEADING,
         };
         await TruecallerAndroidModule.initializeSdk(androidConfig);
       } else {
         await TruecallerIOS.initializeSdk(config);
       }
-      setIsInitialized(true);
+      setIsTruecallerInitialized(true);
       setError(null);
     } catch (err) {
       setError((err as Error).message);
-      setIsInitialized(false);
+      setIsTruecallerInitialized(false);
     }
   }, [config]);
 
@@ -77,7 +81,7 @@ export const useTruecaller = (
     let successListener: any;
     let failureListener: any;
 
-    if (isInitialized) {
+    if (isTruecallerInitialized) {
       if (Platform.OS === 'android') {
         if (!config.androidClientId) {
           setError('Android client ID is required for Android platform');
@@ -134,7 +138,7 @@ export const useTruecaller = (
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitialized, config]);
+  }, [isTruecallerInitialized, config]);
 
   const handleAuthorizationSuccess = async (
     data: TruecallerAndroidResponse | TruecallerIOSResponse
@@ -143,6 +147,8 @@ export const useTruecaller = (
       if (Platform.OS === 'android') {
         const { authorizationCode, codeVerifier } =
           data as TruecallerAndroidResponse;
+        setAndroidAuthorizationData({ authorizationCode, codeVerifier });
+
         const accessToken = await exchangeAuthorizationCodeForAccessToken(
           authorizationCode,
           codeVerifier
@@ -223,7 +229,7 @@ export const useTruecaller = (
   };
 
   const openTruecallerForVerification = useCallback(async () => {
-    if (!isInitialized) {
+    if (!isTruecallerInitialized) {
       setError('SDK is not initialized. Call initializeSDK first.');
       return;
     }
@@ -248,12 +254,14 @@ export const useTruecaller = (
     } catch (err) {
       setError((err as Error).message);
     }
-  }, [isInitialized, config]);
+  }, [isTruecallerInitialized, config]);
 
   return {
     userProfile,
     error,
-    initializeSDK,
+    isTruecallerInitialized,
+    initializeTruecallerSDK,
+    androidAuthorizationData,
     openTruecallerForVerification,
   };
 };
