@@ -36,10 +36,6 @@ export const useTruecaller = (
   );
   const [error, setError] = useState<string | null>(null);
   const [isTruecallerInitialized, setIsTruecallerInitialized] = useState(false);
-  const [androidAuthorizationData, setAndroidAuthorizationData] = useState<{
-    codeVerifier: string | null;
-    authorizationCode: string | null;
-  }>({ codeVerifier: null, authorizationCode: null });
 
   const initializeTruecallerSDK = useCallback(async () => {
     try {
@@ -88,7 +84,14 @@ export const useTruecaller = (
         }
         successListener = DeviceEventEmitter.addListener(
           TRUECALLER_ANDROID_EVENTS.SUCCESS,
-          handleAuthorizationSuccess
+          (data: TruecallerAndroidResponse) => {
+            // custom handler if provided, otherwise default handler
+            if (config.androidSuccessHandler) {
+              config.androidSuccessHandler(data);
+            } else {
+              handleAuthorizationSuccess(data);
+            }
+          }
         );
 
         failureListener = DeviceEventEmitter.addListener(
@@ -146,7 +149,6 @@ export const useTruecaller = (
       if (Platform.OS === 'android') {
         const { authorizationCode, codeVerifier } =
           data as TruecallerAndroidResponse;
-        setAndroidAuthorizationData({ authorizationCode, codeVerifier });
 
         const accessToken = await exchangeAuthorizationCodeForAccessToken(
           authorizationCode,
@@ -260,7 +262,7 @@ export const useTruecaller = (
     error,
     isTruecallerInitialized,
     initializeTruecallerSDK,
-    androidAuthorizationData,
+    isSdkUsable,
     openTruecallerForVerification,
   };
 };

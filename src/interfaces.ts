@@ -55,6 +55,8 @@ export interface TruecallerConfig {
   androidFooterButtonText?: TruecallerFooterButtonTextValue;
   /** Heading text for the consent screen on Android */
   androidConsentHeading?: TruecallerConsentHeadingValue;
+  /** Custom handler for Android success events if you want to handle them yourself */
+  androidSuccessHandler?: (data: TruecallerAndroidResponse) => void;
 }
 
 /**
@@ -99,13 +101,11 @@ export interface TruecallerIOSResponse {
  * Interface for the Truecaller hook result
  */
 export interface UseTruecallerResult {
+  /** Will be null for android if custom success handler is provided */
   userProfile: TruecallerUserProfile | null;
   error: string | null;
   isTruecallerInitialized: boolean;
   initializeTruecallerSDK: () => Promise<void>;
-  androidAuthorizationData: {
-    codeVerifier: string | null;
-    authorizationCode: string | null;
-  };
+  isSdkUsable: () => boolean;
   openTruecallerForVerification: () => Promise<void>;
 }
