@@ -99,12 +99,14 @@ const TruecallerLoginComponent = () => {
   const {
     initializeTruecallerSDK,
     openTruecallerForVerification,
+    isSdkUsable,
     userProfile,
     error
   } = useTruecaller({
     androidClientId: 'YOUR_ANDROID_CLIENT_ID',
     iosAppKey: 'YOUR_IOS_APP_KEY',
     iosAppLink: 'YOUR_IOS_APP_LINK',
+    androidSuccessHandler: handleBackendValidation,
   });
   useEffect(() => {
 // Initialize the Truecaller SDK when the component mounts
@@ -119,6 +121,11 @@ const TruecallerLoginComponent = () => {
 // Handle error
     }
   };
+
+  const handleBackendValidation = async (data) => {
+    // do server side validation if needed
+  }
+
   useEffect(() => {
     if (userProfile) {
       console.log('Truecaller profile:', userProfile);
@@ -158,17 +165,15 @@ A custom hook that provides access to Truecaller functionality.
   - `androidButtonText`: (optional) Text displayed on the Truecaller button on Android
   - `androidFooterButtonText`: (optional) Text displayed on the footer button on Android
   - `androidConsentHeading`: (optional) Heading text for the consent screen on Android
+  - `androidSuccessHandler`: (optional) Callback function invoked on Android when Truecaller succeeds with a response. It receives a parameter of type `TruecallerAndroidResponse` containing the success data. Pass this function if you want to do server side validation of the Truecaller response.
 
 #### Returns
 
 - `initializeSDK(): Promise<void>`: Initializes the Truecaller SDK.
 - `isTrucallerInitialized: boolean`: Returns true if the Truecaller SDK is initialized.
-- `androidAuthorizationData: {
-  codeVerifier: string | null;
-  authorizationCode: string | null;
-  };`: Returns codeVerifier and authorizationCode for Android and null for iOS.
+- `isSdkUsable(): boolean`: Returns true if the Truecaller SDK is usable on the current device.
 - `openTruecallerForVerification(): Promise<void>`: Requests the user's Truecaller verification.
-- `userProfile`: The user's Truecaller profile (if available).
+- `userProfile`: The user's Truecaller profile (if available). For android, it will be available only if androidSuccessHandler is not provided then library will internally handle the validation and will return the userProfile
 - `error`: Any error that occurred during the Truecaller operations.
 
 ## Constants
