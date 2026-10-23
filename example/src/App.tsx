@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 import {
   TRUECALLER_ANDROID_CUSTOMIZATIONS,
@@ -42,6 +43,7 @@ export default function App() {
       <Pressable onPress={openTruecallerForVerification}>
         <Text>Sign in with truecaller</Text>
       </Pressable>
+      <StatusBar style="auto" />
     </View>
   );
 }

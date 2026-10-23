@@ -198,7 +198,10 @@ export const useTruecaller = (
           setError('iOS app key and app link are required for iOS platform');
           return;
         }
-        const eventEmitter = new NativeEventEmitter(TruecallerIOS);
+        const eventEmitter = new NativeEventEmitter<{
+          [TRUECALLER_IOS_EVENTS.SUCCESS]: [TruecallerIOSResponse];
+          [TRUECALLER_IOS_EVENTS.FAILURE]: [{ errorMessage: string }];
+        }>(TruecallerIOS);
 
         successListener = eventEmitter.addListener(
           TRUECALLER_IOS_EVENTS.SUCCESS,

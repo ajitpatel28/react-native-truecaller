@@ -1,38 +1,35 @@
 {
-  "name": "ReactNativeTruecallerExample",
-  "displayName": "ReactNativeTruecallerExample",
-  "components": [
-    {
-      "appKey": "ReactNativeTruecallerExample",
-      "displayName": "ReactNativeTruecallerExample"
+  "expo": {
+    "name": "ReactNativeTruecallerExample",
+    "slug": "react-native-truecaller-example",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      [
+        "../app.plugin.js",
+        {
+          "androidClientId": "xxxxxxxx-android-client-id"
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ajit.reactnativetruecaller.example"
+    },
+    "android": {
+      "package": "ajit.reactnativetruecaller.example",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     }
-  ],
-  "resources": {
-    "android": [
-      "dist/res",
-      "dist/main.android.jsbundle"
-    ],
-    "ios": [
-      "dist/assets",
-      "dist/main.ios.jsbundle"
-    ],
-    "macos": [
-      "dist/assets",
-      "dist/main.macos.jsbundle"
-    ],
-    "visionos": [
-      "dist/assets",
-      "dist/main.visionos.jsbundle"
-    ],
-    "windows": [
-      "dist/assets",
-      "dist/main.windows.bundle"
-    ]
-  },
-  "android": {
-    "package": "ajit.reactnativetruecaller.example"
-  },
-  "ios": {
-    "bundleIdentifier": "ajit.reactnativetruecaller.example"
   }
 }
