@@ -1,5 +1,10 @@
 import { act, create } from 'react-test-renderer';
-import { DeviceEventEmitter, NativeModules, Platform } from 'react-native';
+import {
+  DeviceEventEmitter,
+  NativeModules,
+  Platform,
+  processColor,
+} from 'react-native';
 import { TRUECALLER_ANDROID_EVENTS } from '../constants';
 import type { UseTruecallerResult } from '../interfaces';
 
@@ -18,21 +23,28 @@ const { useTruecaller } = require('../hooks/useTruecaller');
 // Minimal harness: renders the hook via a bare functional component and
 // exposes the latest hook result through a mutable ref, since this repo has
 // no @testing-library/react-hooks (or equivalent) in devDependencies.
-function renderTruecallerHook(config: Parameters<typeof useTruecaller>[0]) {
+type Config = Parameters<typeof useTruecaller>[0];
+
+function renderTruecallerHook(config: Config) {
   const resultRef: { current: UseTruecallerResult | null } = { current: null };
 
-  function Harness() {
-    resultRef.current = useTruecaller(config);
+  function Harness({ hookConfig }: { hookConfig: Config }) {
+    resultRef.current = useTruecaller(hookConfig);
     return null;
   }
 
   let root: ReturnType<typeof create>;
   act(() => {
-    root = create(<Harness />);
+    root = create(<Harness hookConfig={config} />);
   });
 
   return {
     result: resultRef,
+    rerender: (nextConfig: Config) => {
+      act(() => {
+        root.update(<Harness hookConfig={nextConfig} />);
+      });
+    },
     unmount: () => {
       act(() => {
         root.unmount();
@@ -59,6 +71,7 @@ describe('useTruecaller (Android ready-listener lifecycle)', () => {
     DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.READY);
     DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.ERROR);
     DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.FAILURE);
+    DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.SUCCESS);
   });
 
   it('flips isTruecallerInitialized to true when TruecallerAndroidReady fires after init', async () => {
@@ -69,7 +82,7 @@ describe('useTruecaller (Android ready-listener lifecycle)', () => {
     });
     expect(result.current!.isTruecallerInitialized).toBe(false);
 
-    act(() => {
+    await act(async () => {
       DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.READY);
     });
 
@@ -91,7 +104,7 @@ describe('useTruecaller (Android ready-listener lifecycle)', () => {
     );
     expect(listenerCountBefore).toBe(1);
 
-    act(() => {
+    await act(async () => {
       DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.READY);
     });
 
@@ -199,5 +212,123 @@ describe('useTruecaller (Android ready-listener lifecycle)', () => {
 
     expect(result.current!.isTruecallerInitialized).toBe(false);
     expect(result.current!.error).toBe('sdk init failure');
+  });
+
+  const initAndReady = async (result: {
+    current: UseTruecallerResult | null;
+  }) => {
+    await act(async () => {
+      await result.current!.initializeTruecallerSDK();
+    });
+    await act(async () => {
+      DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.READY);
+    });
+  };
+
+  it('sends colours to native as ARGB ints, falling back to the default for unparseable values', async () => {
+    const { result } = renderTruecallerHook({
+      ...config,
+      androidButtonColor: 'rgba(255, 0, 0, 1)',
+      androidButtonTextColor: 'not-a-colour',
+    });
+
+    await act(async () => {
+      await result.current!.initializeTruecallerSDK();
+    });
+
+    const sent = (NativeModules.TruecallerModule.initializeSdk as jest.Mock)
+      .mock.calls[0][0];
+    expect(sent.buttonColor).toBe(processColor('rgba(255, 0, 0, 1)'));
+    expect(sent.buttonTextColor).toBe(processColor('#FFFFFF'));
+  });
+
+  it('resets isTruecallerInitialized on clear so a re-init is observable', async () => {
+    const { result } = renderTruecallerHook(config);
+    await initAndReady(result);
+    expect(result.current!.isTruecallerInitialized).toBe(true);
+
+    act(() => {
+      result.current!.clearTruecallerSdk();
+    });
+
+    expect(NativeModules.TruecallerModule.clearSdk).toHaveBeenCalledTimes(1);
+    expect(result.current!.isTruecallerInitialized).toBe(false);
+  });
+
+  it('ignores a pending ready event once the SDK has been cleared', async () => {
+    const { result } = renderTruecallerHook(config);
+    await act(async () => {
+      await result.current!.initializeTruecallerSDK();
+    });
+
+    act(() => {
+      result.current!.clearTruecallerSdk();
+      DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.READY);
+    });
+
+    expect(result.current!.isTruecallerInitialized).toBe(false);
+  });
+
+  it('keeps callbacks and listeners stable across re-renders with a new inline config', async () => {
+    const firstHandler = jest.fn();
+    const latestHandler = jest.fn();
+    const { result, rerender } = renderTruecallerHook({
+      ...config,
+      androidSuccessHandler: firstHandler,
+    });
+    await initAndReady(result);
+    const { initializeTruecallerSDK, openTruecallerForVerification } =
+      result.current!;
+    const removeSpy = jest.fn();
+    const addListener = DeviceEventEmitter.addListener;
+    const addSpy = jest
+      .spyOn(DeviceEventEmitter, 'addListener')
+      .mockImplementation((...args) => {
+        const sub = addListener.apply(DeviceEventEmitter, args);
+        return { ...sub, remove: removeSpy };
+      });
+
+    rerender({ ...config, androidSuccessHandler: latestHandler });
+    addSpy.mockRestore();
+
+    expect(addSpy).not.toHaveBeenCalled();
+    expect(removeSpy).not.toHaveBeenCalled();
+    expect(result.current!.initializeTruecallerSDK).toBe(
+      initializeTruecallerSDK
+    );
+    expect(result.current!.openTruecallerForVerification).toBe(
+      openTruecallerForVerification
+    );
+
+    const payload = { authorizationCode: 'code', codeVerifier: 'verifier' };
+    act(() => {
+      DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.SUCCESS, payload);
+    });
+    expect(firstHandler).not.toHaveBeenCalled();
+    expect(latestHandler).toHaveBeenCalledWith(payload);
+  });
+
+  it('exposes isUsable: undefined until initialized, then the isSdkUsable result', async () => {
+    const { result } = renderTruecallerHook(config);
+    expect(result.current!.isUsable).toBeUndefined();
+
+    await initAndReady(result);
+    expect(result.current!.isUsable).toBe(true);
+
+    act(() => {
+      result.current!.clearTruecallerSdk();
+    });
+    expect(result.current!.isUsable).toBeUndefined();
+  });
+
+  it('reports isUsable as false when isSdkUsable rejects', async () => {
+    (NativeModules.TruecallerModule.isSdkUsable as jest.Mock).mockRejectedValue(
+      new Error('boom')
+    );
+    const { result } = renderTruecallerHook(config);
+
+    await initAndReady(result);
+
+    expect(result.current!.isUsable).toBe(false);
   });
 });

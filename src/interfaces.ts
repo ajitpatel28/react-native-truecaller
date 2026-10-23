@@ -147,8 +147,49 @@ export interface UseTruecallerResult {
   userProfile: TruecallerUserProfile | null;
   error: string | null;
   isTruecallerInitialized: boolean;
+  /** Result of isSdkUsable() once initialized; undefined until checked */
+  isUsable: boolean | undefined;
   initializeTruecallerSDK: () => Promise<void>;
   isSdkUsable: () => Promise<boolean>;
   openTruecallerForVerification: () => Promise<void>;
   clearTruecallerSdk: () => void;
+}
+
+/**
+ * Error payload emitted by the native Truecaller modules
+ */
+export interface TruecallerError {
+  errorMessage: string;
+}
+
+/**
+ * The map TruecallerModule.java's initializeSdk() reads.
+ * Internal: not exported from the package entry point.
+ */
+export interface AndroidNativeConfig {
+  buttonColor: number;
+  buttonTextColor: number;
+  buttonText: TruecallerButtonTextValue;
+  buttonShape: TruecallerButtonShapeValue;
+  footerButtonText: TruecallerFooterButtonTextValue;
+  consentHeading: TruecallerConsentHeadingValue;
+  // Optional keys are omitted rather than sent as undefined: native checks hasKey().
+  consentMode?: TruecallerConsentModeValue;
+  sdkOptions?: TruecallerSdkOptionValue;
+  darkMode?: boolean;
+  enhancedBottomSheet?: boolean;
+}
+
+/**
+ * Truecaller's OAuth user-info response (Android). Internal: not exported from
+ * the package entry point. Keep in sync with the same fields on the public
+ * TruecallerAndroidResponse.
+ */
+export interface TruecallerUserInfoResponse {
+  given_name: string;
+  family_name: string | null;
+  phone_number: string;
+  phone_number_country_code: string;
+  gender: string | null;
+  email: string | null;
 }

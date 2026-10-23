@@ -2,7 +2,6 @@ package com.ajit.reactnativetruecaller;
 
 import android.app.Activity;
 import android.content.res.Configuration;
-import android.graphics.Color;
 
 import androidx.annotation.Nullable;
 import androidx.activity.result.ActivityResultLauncher;
@@ -166,10 +165,10 @@ public class TruecallerModule extends ReactContextBaseJavaModule implements Life
         TcSdkOptions.Builder sdkOptionsBuilder = new TcSdkOptions.Builder(reactContext, oauthCallback);
 
         if (config.hasKey("buttonColor")) {
-            sdkOptionsBuilder.buttonColor(Color.parseColor(config.getString("buttonColor")));
+            sdkOptionsBuilder.buttonColor(config.getInt("buttonColor"));
         }
         if (config.hasKey("buttonTextColor")) {
-            sdkOptionsBuilder.buttonTextColor(Color.parseColor(config.getString("buttonTextColor")));
+            sdkOptionsBuilder.buttonTextColor(config.getInt("buttonTextColor"));
         }
         if (config.hasKey("buttonText")) {
             sdkOptionsBuilder.ctaText(mapCtaText(config.getString("buttonText")));

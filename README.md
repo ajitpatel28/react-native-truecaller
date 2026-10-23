@@ -12,6 +12,15 @@ React Native library for seamless Truecaller integration, supporting Android SDK
 
 ## Breaking Changes
 
+### v1.2.0
+
+No API changes; only additions. Two behaviour changes to be aware of:
+
+- **Default Android button colour.** `DEFAULT_BUTTON_COLOR` (`'#2C765CFF'`) was parsed by Android as `#AARRGGBB` and rendered as a mostly transparent purple. Colours now follow React Native's rules (`#RRGGBBAA`), so the default renders as solid green `#2C765C`. Apps that set `androidButtonColor` are unaffected.
+- **`clearTruecallerSdk()`** now resets `isTruecallerInitialized` (and `isUsable`), and the success/failure listeners stay removed until the next `initializeTruecallerSDK()`.
+
+New in v1.2.0: `isUsable`, any React Native colour for the Android button colours, and support for an inline `config` object (see API below).
+
 ### v1.1.0
 
 - **Building against Android now requires a JDK 21+ toolchain**, since truecaller-sdk 3.3.0 ships Java 21 bytecode. Expo users get the required config automatically via the plugin; bare React Native users need a few manual edits. See "Android Setup" below.
@@ -240,7 +249,7 @@ const TruecallerLoginComponent = () => {
   const {
     initializeTruecallerSDK,
     openTruecallerForVerification,
-    isSdkUsable,
+    isUsable,
     userProfile,
     error
   } = useTruecaller({
@@ -281,7 +290,9 @@ const TruecallerLoginComponent = () => {
   }, [error]);
   return (
     <View>
-      <Button title="Login with Truecaller" onPress={handleTruecallerLogin} />
+      {isUsable && (
+        <Button title="Login with Truecaller" onPress={handleTruecallerLogin} />
+      )}
   </View>
 );
 };
@@ -296,12 +307,12 @@ A custom hook that provides access to Truecaller functionality.
 
 #### Parameters
 
-- `config`: `TruecallerConfig` object with the following properties:
+- `config`: `TruecallerConfig` object with the following properties. It can be an inline object: the hook always reads the latest config, so there's no need to `useMemo` it or keep the success handlers in a ref.
   - `androidClientId`: (string) Your Android client ID
   - `iosAppKey`: (string) Your iOS app key
   - `iosAppLink`: (string) Your iOS app link
-  - `androidButtonColor`: (optional) Color of the Truecaller button on Android
-  - `androidButtonTextColor`: (optional) Text color of the Truecaller button on Android
+  - `androidButtonColor`: (optional) Color of the Truecaller button on Android. Accepts any React Native color (`'#2C765C'`, `'rgba(44, 118, 92, 1)'`, `'teal'`, …); an unparseable value falls back to the default.
+  - `androidButtonTextColor`: (optional) Text color of the Truecaller button on Android. Same formats and fallback as `androidButtonColor`.
   - `androidButtonShape`: (optional) Shape of the Truecaller button on Android
   - `androidButtonText`: (optional) Text displayed on the Truecaller button on Android
   - `androidFooterButtonText`: (optional) Text displayed on the footer button on Android
@@ -317,9 +328,15 @@ A custom hook that provides access to Truecaller functionality.
 
 - `initializeTruecallerSDK(): Promise<void>`: Initializes the Truecaller SDK.
 - `isTruecallerInitialized: boolean`: Returns true if the Truecaller SDK is initialized.
-- `isSdkUsable(): Promise<boolean>`: Returns a promise that resolves to `true` if the Truecaller SDK is usable on the current device. Must be awaited.
+- `isUsable: boolean | undefined`: Whether Truecaller sign-in can be used on this device, i.e. the Truecaller app is installed and able to run the sign-in flow. Checked automatically once the SDK is initialized:
+  - `undefined`: not known yet. This is the value before and during init, **if init fails** (check `error`), and after `clearTruecallerSdk()`.
+  - `true`: Truecaller sign-in is available; you can show your Truecaller button.
+  - `false`: not available (Truecaller not installed, not signed in, or unsupported), or the check failed.
+
+  Note: `isUsable` is not a pure "is the Truecaller app installed" flag. On Android the check needs an initialized SDK, so an install where init failed stays `undefined`, not `false`.
+- `isSdkUsable(): Promise<boolean>`: Runs the same check on demand. On Android it returns `false` until the SDK is initialized, so prefer `isUsable`. Must be awaited.
 - `openTruecallerForVerification(): Promise<void>`: Requests the user's Truecaller verification.
-- `clearTruecallerSdk(): void`: Clears the SDK state and unregisters the activity result launcher. Android only.
+- `clearTruecallerSdk(): void`: Clears the SDK state, unregisters the activity result launcher and resets `isTruecallerInitialized` to `false`, so a later `initializeTruecallerSDK()` is observable again. Android only.
 - `userProfile`: The user's Truecaller profile (if available). For android, it will be available only if androidSuccessHandler is not provided then library will internally handle the validation and will return the userProfile
 - `error`: Any error that occurred during the Truecaller operations.
 
