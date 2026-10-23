@@ -19,13 +19,17 @@ yarn
 
 > Since the project relies on Yarn workspaces, you cannot use [`npm`](https://github.com/npm/cli) for development.
 
-The [example app](/example/) demonstrates usage of the library. You need to run it to test any changes you make.
+The [example app](/example/) is an Expo SDK 58 app that depends on the local library and applies the config plugin. You need to run it to test any changes you make.
 
-It is configured to use the local version of the library, so any changes you make to the library's source code will be reflected in the example app. Changes to the library's JavaScript code will be reflected in the example app without a rebuild, but native code changes will require a rebuild of the example app.
+JavaScript changes in the library are picked up without a rebuild. Native or plugin changes need `yarn example prebuild` and a native rebuild (`yarn example android` / `yarn example ios`).
 
-If you want to use Android Studio or XCode to edit the native code, you can open the `example/android` or `example/ios` directories respectively in those editors. To edit the Objective-C or Swift files, open `example/ios/ReactNativeTruecallerExample.xcworkspace` in XCode and find the source files at `Pods > Development Pods > @ajitpatel28/react-native-truecaller`.
+Generated `example/android` and `example/ios` are not committed. To open them in Android Studio or Xcode after prebuild:
 
-To edit the Java or Kotlin files, open `example/android` in Android studio and find the source files at `ajit-react-native-truecaller` under `Android`.
+```sh
+yarn example prebuild
+```
+
+Then open `example/android` or `example/ios/ReactNativeTruecallerExample.xcworkspace`.
 
 You can use various commands from the root directory to work with the project.
 

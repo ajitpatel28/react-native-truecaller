@@ -11,7 +11,7 @@ export const TRUECALLER_ANDROID_EVENTS = {
 export const TRUECALLER_IOS_EVENTS = {
   SUCCESS: 'TruecallerIOSSuccess',
   FAILURE: 'TruecallerIOSFailure',
-};
+} as const;
 
 // Button Text Customizations for Android
 export const TRUECALLER_ANDROID_CUSTOMIZATIONS = {
