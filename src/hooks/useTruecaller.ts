@@ -1,99 +1,74 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+} from 'react';
 import {
   Platform,
   NativeModules,
   NativeEventEmitter,
   DeviceEventEmitter,
+  type EventSubscription,
 } from 'react-native';
-import axios from 'axios';
 import type {
   TruecallerConfig,
   TruecallerUserProfile,
   UseTruecallerResult,
   TruecallerAndroidResponse,
   TruecallerIOSResponse,
+  TruecallerError,
 } from '../interfaces';
+import { TRUECALLER_ANDROID_EVENTS, TRUECALLER_IOS_EVENTS } from '../constants';
+import { toAndroidNativeConfig, getConfigError } from '../config';
 import {
-  TRUECALLER_ANDROID_EVENTS,
-  TRUECALLER_IOS_EVENTS,
-  TRUECALLER_API_URLS,
-  DEFAULT_BUTTON_TEXT_COLOR,
-  DEFAULT_BUTTON_COLOR,
-  DEFAULT_BUTTON_SHAPE,
-  DEFAULT_BUTTON_TEXT,
-  DEFAULT_CONSENT_HEADING,
-  DEFAULT_FOOTER_BUTTON_TEXT,
-} from '../constants';
+  mapAndroidUserInfoToUserProfile,
+  mapIOSResponseToUserProfile,
+} from '../profile';
+import { fetchAndroidUserInfo } from '../api';
 
 const TruecallerAndroidModule = NativeModules.TruecallerModule;
 const TruecallerIOS = NativeModules.ReactNativeTruecaller;
 
+const isSdkUsable = async (): Promise<boolean> => {
+  if (Platform.OS === 'android') return TruecallerAndroidModule.isSdkUsable();
+  if (Platform.OS === 'ios') return TruecallerIOS.isSupported();
+  return false;
+};
+
 export const useTruecaller = (
-  config: TruecallerConfig
+  latestConfig: TruecallerConfig
 ): UseTruecallerResult => {
+  // Callers often pass an inline object; reading the latest config through a
+  // ref keeps callbacks stable and listeners subscribed across re-renders.
+  const configRef = useRef(latestConfig);
+  useLayoutEffect(() => {
+    configRef.current = latestConfig;
+  });
   const [userProfile, setUserProfile] = useState<TruecallerUserProfile | null>(
     null
   );
   const [error, setError] = useState<string | null>(null);
   const [isTruecallerInitialized, setIsTruecallerInitialized] = useState(false);
-  const readyListenerRef = useRef<{ remove: () => void } | null>(null);
-  const initFailureListenersRef = useRef<{ remove: () => void }[]>([]);
+  const [isUsable, setIsUsable] = useState<boolean | undefined>(undefined);
+  const initListenersRef = useRef<EventSubscription[]>([]);
+
+  // Removes not-yet-fired init listeners so a late event from an earlier init
+  // can't flip state after a retry, a clear, or unmount.
+  const clearInitListeners = useCallback(() => {
+    initListenersRef.current.forEach((l) => l.remove());
+    initListenersRef.current = [];
+  }, []);
 
   const initializeTruecallerSDK = useCallback(async () => {
+    const config = configRef.current;
     try {
-      if (Platform.OS === 'android' && !config.androidClientId) {
-        throw new Error('Android client ID is required for Android platform');
-      }
-      if (Platform.OS === 'ios' && (!config.iosAppKey || !config.iosAppLink)) {
-        throw new Error(
-          'iOS app key and app link are required for iOS platform'
-        );
-      }
+      const configError = getConfigError(config);
+      if (configError) throw new Error(configError);
 
       if (Platform.OS === 'android') {
-        const androidConfig: Record<string, unknown> = {
-          buttonColor: config.androidButtonColor || DEFAULT_BUTTON_COLOR,
-          buttonTextColor:
-            config.androidButtonTextColor || DEFAULT_BUTTON_TEXT_COLOR,
-          buttonText: config.androidButtonText || DEFAULT_BUTTON_TEXT,
-          buttonShape: config.androidButtonShape || DEFAULT_BUTTON_SHAPE,
-          footerButtonText:
-            config.androidFooterButtonText || DEFAULT_FOOTER_BUTTON_TEXT,
-          consentHeading:
-            config.androidConsentHeading || DEFAULT_CONSENT_HEADING,
-        };
-        if (config.androidConsentMode) {
-          androidConfig.consentMode = config.androidConsentMode;
-        }
-        if (config.androidSdkOptions) {
-          androidConfig.sdkOptions = config.androidSdkOptions;
-        }
-        if (config.androidDarkMode !== undefined) {
-          androidConfig.darkMode = config.androidDarkMode;
-        }
-        if (config.androidEnhancedBottomSheet !== undefined) {
-          androidConfig.enhancedBottomSheet = config.androidEnhancedBottomSheet;
-        }
-        // Remove any previously-registered, not-yet-fired listeners from an
-        // earlier call before registering fresh ones, to avoid stacking
-        // listeners/state updates from stale closures on retry.
-        const clearInitListeners = () => {
-          readyListenerRef.current?.remove();
-          readyListenerRef.current = null;
-          initFailureListenersRef.current.forEach((l) => l.remove());
-          initFailureListenersRef.current = [];
-        };
         clearInitListeners();
-
-        const readyListener = DeviceEventEmitter.addListener(
-          TRUECALLER_ANDROID_EVENTS.READY,
-          () => {
-            setIsTruecallerInitialized(true);
-            setError(null);
-            clearInitListeners();
-          }
-        );
-        readyListenerRef.current = readyListener;
 
         // Init is async: initializeSdk() only accepts the request, and a
         // failure can be reported before isTruecallerInitialized ever becomes
@@ -108,11 +83,19 @@ export const useTruecaller = (
         // Without listeners registered up front for both, an init-time
         // failure would be dropped on the floor and the hook would hang
         // silently forever.
-        const handleInitFailure = (err: { errorMessage: string }) => {
+        const handleInitFailure = (err: TruecallerError) => {
           setError(err.errorMessage);
           clearInitListeners();
         };
-        initFailureListenersRef.current = [
+        initListenersRef.current = [
+          DeviceEventEmitter.addListener(
+            TRUECALLER_ANDROID_EVENTS.READY,
+            () => {
+              setIsTruecallerInitialized(true);
+              setError(null);
+              clearInitListeners();
+            }
+          ),
           DeviceEventEmitter.addListener(
             TRUECALLER_ANDROID_EVENTS.ERROR,
             handleInitFailure
@@ -124,7 +107,9 @@ export const useTruecaller = (
         ];
 
         try {
-          await TruecallerAndroidModule.initializeSdk(androidConfig);
+          await TruecallerAndroidModule.initializeSdk(
+            toAndroidNativeConfig(config)
+          );
         } catch (initErr) {
           // If native init itself throws, remove the pending listeners so a
           // late/racing event can't silently flip isTruecallerInitialized
@@ -141,182 +126,96 @@ export const useTruecaller = (
       setError((err as Error).message);
       setIsTruecallerInitialized(false);
     }
-  }, [config]);
+  }, [clearInitListeners]);
+
+  useEffect(() => clearInitListeners, [clearInitListeners]);
 
   useEffect(() => {
+    if (!isTruecallerInitialized) {
+      setIsUsable(undefined);
+      return;
+    }
+    let cancelled = false;
+    isSdkUsable()
+      .catch(() => false)
+      .then((usable) => {
+        if (!cancelled) setIsUsable(usable);
+      });
     return () => {
-      readyListenerRef.current?.remove();
-      readyListenerRef.current = null;
-      initFailureListenersRef.current.forEach((l) => l.remove());
-      initFailureListenersRef.current = [];
+      cancelled = true;
     };
-  }, []);
+  }, [isTruecallerInitialized]);
 
   useEffect(() => {
-    let successListener: any;
-    let failureListener: any;
-    let errorListener: any;
-    let verificationRequiredListener: any;
+    if (!isTruecallerInitialized) return;
 
-    if (isTruecallerInitialized) {
-      if (Platform.OS === 'android') {
-        if (!config.androidClientId) {
-          setError('Android client ID is required for Android platform');
-          return;
-        }
-        successListener = DeviceEventEmitter.addListener(
+    const reportError = (err: TruecallerError) => setError(err.errorMessage);
+    const reportFailure = (err: TruecallerError) => {
+      setError(err.errorMessage);
+      setUserProfile(null);
+    };
+    const showProfile = async (load: () => Promise<TruecallerUserProfile>) => {
+      try {
+        setUserProfile(await load());
+        setError(null);
+      } catch (err) {
+        reportFailure({ errorMessage: (err as Error).message });
+      }
+    };
+
+    let subscriptions: EventSubscription[] = [];
+    if (Platform.OS === 'android') {
+      subscriptions = [
+        DeviceEventEmitter.addListener(
           TRUECALLER_ANDROID_EVENTS.SUCCESS,
           (data: TruecallerAndroidResponse) => {
-            if (config.androidSuccessHandler) {
-              config.androidSuccessHandler(data);
+            const { androidSuccessHandler, androidClientId } =
+              configRef.current;
+            if (androidSuccessHandler) {
+              androidSuccessHandler(data);
             } else {
-              handleAuthorizationSuccess(data);
+              showProfile(async () =>
+                mapAndroidUserInfoToUserProfile(
+                  await fetchAndroidUserInfo(androidClientId, data)
+                )
+              );
             }
           }
-        );
-        failureListener = DeviceEventEmitter.addListener(
+        ),
+        DeviceEventEmitter.addListener(
           TRUECALLER_ANDROID_EVENTS.FAILURE,
-          (err: { errorMessage: string }) => {
-            setError(err.errorMessage);
-            setUserProfile(null);
-          }
-        );
-        errorListener = DeviceEventEmitter.addListener(
+          reportFailure
+        ),
+        DeviceEventEmitter.addListener(
           TRUECALLER_ANDROID_EVENTS.ERROR,
-          (err: { errorMessage: string }) => {
-            setError(err.errorMessage);
-          }
-        );
-        verificationRequiredListener = DeviceEventEmitter.addListener(
+          reportError
+        ),
+        DeviceEventEmitter.addListener(
           TRUECALLER_ANDROID_EVENTS.VERIFICATION_REQUIRED,
-          (err: { errorMessage: string }) => {
-            setError(err.errorMessage);
+          reportError
+        ),
+      ];
+    } else if (Platform.OS === 'ios') {
+      const eventEmitter = new NativeEventEmitter<{
+        [TRUECALLER_IOS_EVENTS.SUCCESS]: [TruecallerIOSResponse];
+        [TRUECALLER_IOS_EVENTS.FAILURE]: [TruecallerError];
+      }>(TruecallerIOS);
+      subscriptions = [
+        eventEmitter.addListener(TRUECALLER_IOS_EVENTS.SUCCESS, (data) => {
+          const { iosSuccessHandler } = configRef.current;
+          if (iosSuccessHandler) {
+            iosSuccessHandler(data);
+          } else {
+            setUserProfile(mapIOSResponseToUserProfile(data));
+            setError(null);
           }
-        );
-      } else if (Platform.OS === 'ios') {
-        if (!config.iosAppKey || !config.iosAppLink) {
-          setError('iOS app key and app link are required for iOS platform');
-          return;
-        }
-        const eventEmitter = new NativeEventEmitter<{
-          [TRUECALLER_IOS_EVENTS.SUCCESS]: [TruecallerIOSResponse];
-          [TRUECALLER_IOS_EVENTS.FAILURE]: [{ errorMessage: string }];
-        }>(TruecallerIOS);
-
-        successListener = eventEmitter.addListener(
-          TRUECALLER_IOS_EVENTS.SUCCESS,
-          (data: TruecallerIOSResponse) => {
-            if (config.iosSuccessHandler) {
-              config.iosSuccessHandler(data);
-            } else {
-              handleAuthorizationSuccess(data);
-            }
-          }
-        );
-        failureListener = eventEmitter.addListener(
-          TRUECALLER_IOS_EVENTS.FAILURE,
-          (err: { errorMessage: string }) => {
-            setError(err.errorMessage);
-            setUserProfile(null);
-          }
-        );
-      }
+        }),
+        eventEmitter.addListener(TRUECALLER_IOS_EVENTS.FAILURE, reportFailure),
+      ];
     }
 
-    return () => {
-      successListener?.remove();
-      failureListener?.remove();
-      errorListener?.remove();
-      verificationRequiredListener?.remove();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTruecallerInitialized, config]);
-
-  const handleAuthorizationSuccess = async (
-    data: TruecallerAndroidResponse | TruecallerIOSResponse
-  ) => {
-    try {
-      if (Platform.OS === 'android') {
-        const { authorizationCode, codeVerifier } =
-          data as TruecallerAndroidResponse;
-
-        const accessToken = await exchangeAuthorizationCodeForAccessToken(
-          authorizationCode,
-          codeVerifier
-        );
-        const userInfo = await fetchUserProfile(accessToken);
-        setUserProfile(userInfo);
-      } else {
-        // For iOS, the profile data is directly available
-        setUserProfile(
-          mapIOSResponseToUserProfile(data as TruecallerIOSResponse)
-        );
-      }
-      setError(null);
-    } catch (err) {
-      setError((err as Error).message);
-      setUserProfile(null);
-    }
-  };
-
-  const exchangeAuthorizationCodeForAccessToken = async (
-    authorizationCode: string,
-    codeVerifier: string
-  ): Promise<string> => {
-    const clientId = config.androidClientId;
-    const response = await axios.post(
-      TRUECALLER_API_URLS.TOKEN_URL,
-      {
-        grant_type: 'authorization_code',
-        client_id: clientId,
-        code: authorizationCode,
-        code_verifier: codeVerifier,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      }
-    );
-    return response.data.access_token;
-  };
-
-  const fetchUserProfile = async (
-    accessToken: string
-  ): Promise<TruecallerUserProfile> => {
-    const response = await axios.get(TRUECALLER_API_URLS.USER_INFO_URL, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    return mapAndroidResponseToUserProfile(response.data);
-  };
-
-  const mapAndroidResponseToUserProfile = (
-    data: TruecallerAndroidResponse
-  ): TruecallerUserProfile => ({
-    firstName: data.given_name,
-    lastName: data.family_name,
-    email: data.email,
-    countryCode: data.phone_number_country_code,
-    gender: data.gender,
-    phoneNumber: data.phone_number,
-  });
-
-  const mapIOSResponseToUserProfile = (
-    data: TruecallerIOSResponse
-  ): TruecallerUserProfile => ({
-    firstName: data.firstName,
-    lastName: data.lastName,
-    email: data.email,
-    countryCode: data.countryCode,
-    gender: data.gender !== 0 ? String(data.gender) : null,
-    phoneNumber: data.phoneNumber,
-  });
-
-  const isSdkUsable = async (): Promise<boolean> => {
-    if (Platform.OS === 'android') return TruecallerAndroidModule.isSdkUsable();
-    if (Platform.OS === 'ios') return TruecallerIOS.isSupported();
-    return false;
-  };
+    return () => subscriptions.forEach((s) => s.remove());
+  }, [isTruecallerInitialized]);
 
   const openTruecallerForVerification = useCallback(async () => {
     if (!isTruecallerInitialized) {
@@ -328,34 +227,32 @@ export const useTruecaller = (
       if (!(await isSdkUsable())) {
         throw new Error('Truecaller SDK is not usable on this device');
       }
+      const configError = getConfigError(configRef.current);
+      if (configError) throw new Error(configError);
+
       if (Platform.OS === 'android') {
-        if (!config.androidClientId) {
-          throw new Error('Android client ID is required for Android platform');
-        }
         await TruecallerAndroidModule.requestAuthorizationCode();
       } else {
-        if (!config.iosAppKey || !config.iosAppLink) {
-          throw new Error(
-            'iOS app key and app link are required for iOS platform'
-          );
-        }
         await TruecallerIOS.requestProfile();
       }
     } catch (err) {
       setError((err as Error).message);
     }
-  }, [isTruecallerInitialized, config]);
+  }, [isTruecallerInitialized]);
 
   const clearTruecallerSdk = useCallback(() => {
     if (Platform.OS === 'android') {
+      clearInitListeners();
       TruecallerAndroidModule.clearSdk();
+      setIsTruecallerInitialized(false);
     }
-  }, []);
+  }, [clearInitListeners]);
 
   return {
     userProfile,
     error,
     isTruecallerInitialized,
+    isUsable,
     initializeTruecallerSDK,
     isSdkUsable,
     openTruecallerForVerification,
