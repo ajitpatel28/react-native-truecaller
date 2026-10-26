@@ -17,6 +17,13 @@ NativeModules.TruecallerModule = {
   requestAuthorizationCode: jest.fn().mockResolvedValue(undefined),
   clearSdk: jest.fn(),
 };
+NativeModules.ReactNativeTruecaller = {
+  initialize: jest.fn().mockResolvedValue(undefined),
+  isSupported: jest.fn().mockResolvedValue(true),
+  requestProfile: jest.fn().mockResolvedValue(undefined),
+  addListener: jest.fn(),
+  removeListeners: jest.fn(),
+};
 
 const { useTruecaller } = require('../hooks/useTruecaller');
 
@@ -53,27 +60,41 @@ function renderTruecallerHook(config: Config) {
   };
 }
 
-describe('useTruecaller (Android ready-listener lifecycle)', () => {
-  const config = { androidClientId: 'test-client-id' };
+const config = { androidClientId: 'test-client-id' };
 
-  beforeEach(() => {
-    Platform.OS = 'android';
-    (NativeModules.TruecallerModule.initializeSdk as jest.Mock)
-      .mockReset()
-      .mockResolvedValue(undefined);
-    (NativeModules.TruecallerModule.isSdkUsable as jest.Mock)
-      .mockReset()
-      .mockResolvedValue(true);
-    (NativeModules.TruecallerModule.requestAuthorizationCode as jest.Mock)
-      .mockReset()
-      .mockResolvedValue(undefined);
-    (NativeModules.TruecallerModule.clearSdk as jest.Mock).mockReset();
-    DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.READY);
-    DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.ERROR);
-    DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.FAILURE);
-    DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.SUCCESS);
+beforeEach(() => {
+  Platform.OS = 'android';
+  (NativeModules.TruecallerModule.initializeSdk as jest.Mock)
+    .mockReset()
+    .mockResolvedValue(undefined);
+  (NativeModules.TruecallerModule.isSdkUsable as jest.Mock)
+    .mockReset()
+    .mockResolvedValue(true);
+  (NativeModules.TruecallerModule.requestAuthorizationCode as jest.Mock)
+    .mockReset()
+    .mockResolvedValue(undefined);
+  (NativeModules.TruecallerModule.clearSdk as jest.Mock).mockReset();
+  DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.READY);
+  DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.ERROR);
+  DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.FAILURE);
+  DeviceEventEmitter.removeAllListeners(TRUECALLER_ANDROID_EVENTS.SUCCESS);
+  DeviceEventEmitter.removeAllListeners(
+    TRUECALLER_ANDROID_EVENTS.VERIFICATION_REQUIRED
+  );
+});
+
+const initAndReady = async (result: {
+  current: UseTruecallerResult | null;
+}) => {
+  await act(async () => {
+    await result.current!.initializeTruecallerSDK();
   });
+  await act(async () => {
+    DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.READY);
+  });
+};
 
+describe('useTruecaller (Android ready-listener lifecycle)', () => {
   it('flips isTruecallerInitialized to true when TruecallerAndroidReady fires after init', async () => {
     const { result } = renderTruecallerHook(config);
 
@@ -214,17 +235,6 @@ describe('useTruecaller (Android ready-listener lifecycle)', () => {
     expect(result.current!.error).toBe('sdk init failure');
   });
 
-  const initAndReady = async (result: {
-    current: UseTruecallerResult | null;
-  }) => {
-    await act(async () => {
-      await result.current!.initializeTruecallerSDK();
-    });
-    await act(async () => {
-      DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.READY);
-    });
-  };
-
   it('sends colours to native as ARGB ints, falling back to the default for unparseable values', async () => {
     const { result } = renderTruecallerHook({
       ...config,
@@ -330,5 +340,137 @@ describe('useTruecaller (Android ready-listener lifecycle)', () => {
     await initAndReady(result);
 
     expect(result.current!.isUsable).toBe(false);
+  });
+});
+
+describe('onError', () => {
+  const FOOTER_ERROR = {
+    errorCode: 14,
+    errorMessage: 'User denied by pressing the footer button',
+  };
+
+  it('calls onError with the error code on every failure, including repeats', async () => {
+    const onError = jest.fn();
+    const { result } = renderTruecallerHook({ ...config, onError });
+    await initAndReady(result);
+
+    act(() => {
+      DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.FAILURE, FOOTER_ERROR);
+    });
+    act(() => {
+      DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.FAILURE, FOOTER_ERROR);
+    });
+
+    expect(onError).toHaveBeenCalledTimes(2);
+    expect(onError).toHaveBeenLastCalledWith(FOOTER_ERROR);
+  });
+
+  it('calls onError once for a failure during re-init, without resetting init', async () => {
+    const onError = jest.fn();
+    const { result } = renderTruecallerHook({ ...config, onError });
+    await initAndReady(result);
+
+    await act(async () => {
+      await result.current!.initializeTruecallerSDK();
+    });
+    expect(result.current!.isTruecallerInitialized).toBe(true);
+    act(() => {
+      DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.FAILURE, FOOTER_ERROR);
+    });
+
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onError for ERROR and FAILURE events emitted before ready', async () => {
+    const onError = jest.fn();
+    const { result } = renderTruecallerHook({ ...config, onError });
+
+    for (const event of [
+      TRUECALLER_ANDROID_EVENTS.ERROR,
+      TRUECALLER_ANDROID_EVENTS.FAILURE,
+    ]) {
+      await act(async () => {
+        await result.current!.initializeTruecallerSDK();
+      });
+      act(() => {
+        DeviceEventEmitter.emit(event, { errorCode: 18, errorMessage: event });
+      });
+    }
+
+    expect(onError.mock.calls).toEqual([
+      [{ errorCode: 18, errorMessage: TRUECALLER_ANDROID_EVENTS.ERROR }],
+      [{ errorCode: 18, errorMessage: TRUECALLER_ANDROID_EVENTS.FAILURE }],
+    ]);
+  });
+
+  it('calls onError with errorCode 0 for errors raised by the library', async () => {
+    const onError = jest.fn();
+    const { result } = renderTruecallerHook({ ...config, onError });
+
+    await act(async () => {
+      await result.current!.openTruecallerForVerification();
+    });
+
+    expect(onError).toHaveBeenCalledWith({
+      errorCode: 0,
+      errorMessage: 'SDK is not initialized. Call initializeSDK first.',
+    });
+  });
+
+  it('clears the error state when the sheet is opened again', async () => {
+    const { result } = renderTruecallerHook(config);
+    await initAndReady(result);
+    act(() => {
+      DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.FAILURE, FOOTER_ERROR);
+    });
+    expect(result.current!.error).toBe(FOOTER_ERROR.errorMessage);
+
+    await act(async () => {
+      await result.current!.openTruecallerForVerification();
+    });
+
+    expect(result.current!.error).toBeNull();
+  });
+
+  it('calls the latest inline onError without re-subscribing listeners', async () => {
+    const firstOnError = jest.fn();
+    const latestOnError = jest.fn();
+    const { result, rerender } = renderTruecallerHook({
+      ...config,
+      onError: firstOnError,
+    });
+    await initAndReady(result);
+    const addSpy = jest.spyOn(DeviceEventEmitter, 'addListener');
+
+    rerender({ ...config, onError: latestOnError });
+    addSpy.mockRestore();
+    act(() => {
+      DeviceEventEmitter.emit(TRUECALLER_ANDROID_EVENTS.FAILURE, FOOTER_ERROR);
+    });
+
+    expect(addSpy).not.toHaveBeenCalled();
+    expect(firstOnError).not.toHaveBeenCalled();
+    expect(latestOnError).toHaveBeenCalledWith(FOOTER_ERROR);
+  });
+});
+
+describe('iOS', () => {
+  it('resets isTruecallerInitialized on clear on iOS without calling the Android clearSdk', async () => {
+    Platform.OS = 'ios';
+    const { result } = renderTruecallerHook({
+      iosAppKey: 'key',
+      iosAppLink: 'https://example.com',
+    });
+    await act(async () => {
+      await result.current!.initializeTruecallerSDK();
+    });
+    expect(result.current!.isTruecallerInitialized).toBe(true);
+
+    act(() => {
+      result.current!.clearTruecallerSdk();
+    });
+
+    expect(result.current!.isTruecallerInitialized).toBe(false);
+    expect(NativeModules.TruecallerModule.clearSdk).not.toHaveBeenCalled();
   });
 });

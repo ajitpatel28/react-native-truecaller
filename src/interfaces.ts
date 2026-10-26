@@ -83,6 +83,8 @@ export interface TruecallerConfig {
   androidSuccessHandler?: (data: TruecallerAndroidResponse) => void;
   /** Custom handler for iOS success events if you want to handle the raw profile yourself */
   iosSuccessHandler?: (data: TruecallerIOSResponse) => void;
+  /** Called on every failure (init and verification flow) */
+  onError?: (error: TruecallerError) => void;
 }
 
 /**
@@ -156,9 +158,11 @@ export interface UseTruecallerResult {
 }
 
 /**
- * Error payload emitted by the native Truecaller modules
+ * Error passed to onError: from the native Truecaller SDK, or raised by this library
  */
 export interface TruecallerError {
+  /** Native SDK error code; 0 is the generic code, also used for errors raised by this library */
+  errorCode: number;
   errorMessage: string;
 }
 

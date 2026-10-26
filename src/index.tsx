@@ -13,6 +13,7 @@ export type {
   TruecallerAndroidResponse,
   TruecallerIOSResponse,
   UseTruecallerResult,
+  TruecallerError,
   TruecallerButtonTextKey,
   TruecallerButtonTextValue,
   TruecallerButtonShapeKey,
