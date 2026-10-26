@@ -12,6 +12,15 @@ React Native library for seamless Truecaller integration, supporting Android SDK
 
 ## Breaking Changes
 
+### v1.3.0
+
+No breaking API changes; only additions. Two behaviour changes to be aware of:
+
+- **`error` resets to `null` when `openTruecallerForVerification()` is called**, so a repeat of the same failure is reported again. Apps that show `error` on screen will see it clear when the sheet opens.
+- **`clearTruecallerSdk()` now acts on iOS too.** It resets `isTruecallerInitialized` (and `isUsable`) and removes the iOS listeners until the next `initializeTruecallerSDK()`. Before, it did nothing on iOS.
+
+New in v1.3.0: the `onError` config option, called on every failure with `{ errorCode, errorMessage }`, and the `TruecallerError` type, now exported with `errorCode` (see [Error Handling](#error-handling)).
+
 ### v1.2.0
 
 No API changes; only additions. Two behaviour changes to be aware of:
@@ -323,6 +332,7 @@ A custom hook that provides access to Truecaller functionality.
   - `androidEnhancedBottomSheet`: (optional, boolean) Toggle the v3.3.0 "enhanced bottom sheet" consent UI on Android (defaults to SDK default: enabled)
   - `androidSuccessHandler`: (optional) Callback function invoked on Android when Truecaller succeeds with a response. It receives a parameter of type `TruecallerAndroidResponse` containing the success data. Pass this function if you want to do server side validation of the Truecaller response.
   - `iosSuccessHandler`: (optional) Callback function invoked on iOS when Truecaller succeeds with a response. It receives a parameter of type `TruecallerIOSResponse` containing the raw profile (name, phone number, address, socials, avatar, and — when available — the `payload`/`signature`/`signatureAlgorithm`/`requestNonce` needed for server-side verification). Pass this function if you want to handle the raw iOS profile yourself instead of the normalized `userProfile`.
+  - `onError`: (optional) Callback invoked on every failure, during init and during verification, with a `TruecallerError` (`{ errorCode, errorMessage }`). Unlike the `error` state, which only notifies when its value changes, `onError` also fires when the same error happens twice in a row. Use it for analytics or logging. See [Error Handling](#error-handling) for the codes.
 
 #### Returns
 
@@ -336,9 +346,9 @@ A custom hook that provides access to Truecaller functionality.
   Note: `isUsable` is not a pure "is the Truecaller app installed" flag. On Android the check needs an initialized SDK, so an install where init failed stays `undefined`, not `false`.
 - `isSdkUsable(): Promise<boolean>`: Runs the same check on demand. On Android it returns `false` until the SDK is initialized, so prefer `isUsable`. Must be awaited.
 - `openTruecallerForVerification(): Promise<void>`: Requests the user's Truecaller verification.
-- `clearTruecallerSdk(): void`: Clears the SDK state, unregisters the activity result launcher and resets `isTruecallerInitialized` to `false`, so a later `initializeTruecallerSDK()` is observable again. Android only.
+- `clearTruecallerSdk(): void`: Resets `isTruecallerInitialized` to `false`, so a later `initializeTruecallerSDK()` is observable again. On Android it also clears the native SDK state and unregisters the activity result launcher; iOS has no native clear, so there it only resets the hook's state.
 - `userProfile`: The user's Truecaller profile (if available). For android, it will be available only if androidSuccessHandler is not provided then library will internally handle the validation and will return the userProfile
-- `error`: Any error that occurred during the Truecaller operations.
+- `error: string | null`: The message of the latest error. Reset to `null` when `openTruecallerForVerification()` is called and after a successful init or profile.
 
 ## Constants
 
@@ -389,6 +399,7 @@ The following types are exported for use in TypeScript projects:
 
 ```typescript
 import type {
+  TruecallerError,
   TruecallerConsentModeKey,
   TruecallerConsentModeValue,
   TruecallerSdkOptionKey,
@@ -398,6 +409,7 @@ import type {
 
 | Type                      | Description                                              |
 | ------------------------- | -------------------------------------------------------- |
+| `TruecallerError`            | `{ errorCode: number; errorMessage: string }`, passed to `onError` |
 | `TruecallerConsentModeKey`   | Union of valid keys for `CONSENT_MODES`               |
 | `TruecallerConsentModeValue` | Union of valid values for `CONSENT_MODES`             |
 | `TruecallerSdkOptionKey`     | Union of valid keys for `SDK_OPTIONS`                 |
@@ -405,7 +417,26 @@ import type {
 
 ## Error Handling
 
-The library throws errors in case of initialization or profile request failures. Implement proper error handling in your application using try-catch blocks or by checking the `error` value returned from the `useTruecaller` hook.
+The hook doesn't throw. Failures are reported two ways:
+
+- **`onError`** (config): called on every failure with `{ errorCode, errorMessage }`, including repeats. Use it for analytics or logging.
+- **`error`** (returned state): the latest message. Use it for UI.
+
+```tsx
+const { error } = useTruecaller({
+  androidClientId: 'YOUR_CLIENT_ID',
+  onError: ({ errorCode, errorMessage }) => {
+    analytics.track('truecaller_error', { errorCode, errorMessage });
+  },
+});
+```
+
+`errorCode` is the Truecaller SDK's own code, passed through unchanged; errors raised by this library (config, activity, not initialised) use `0`. For what each code means, see Truecaller's docs:
+
+- Android: [Handling Error Scenarios](https://docs.truecaller.com/truecaller-sdk/android/oauth-sdk-3.0/integration-steps/handling-error-scenarios)
+- iOS: the `TCTrueSDKErrorCode` enum in the TrueSDK pod (`TCError.h`)
+
+`VERIFICATION_REQUIRED` on Android (a user without a Truecaller account who must verify another way) is also reported through `onError` and `error`.
 
 ## Notes
 

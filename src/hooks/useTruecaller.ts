@@ -37,6 +37,12 @@ const isSdkUsable = async (): Promise<boolean> => {
   return false;
 };
 
+// Errors raised in JS, not by the native SDK, use the SDK's generic code 0.
+const libraryError = (err: unknown): TruecallerError => ({
+  errorCode: 0,
+  errorMessage: (err as Error).message,
+});
+
 export const useTruecaller = (
   latestConfig: TruecallerConfig
 ): UseTruecallerResult => {
@@ -53,6 +59,11 @@ export const useTruecaller = (
   const [isTruecallerInitialized, setIsTruecallerInitialized] = useState(false);
   const [isUsable, setIsUsable] = useState<boolean | undefined>(undefined);
   const initListenersRef = useRef<EventSubscription[]>([]);
+
+  const reportError = useCallback((err: TruecallerError) => {
+    setError(err.errorMessage);
+    configRef.current.onError?.(err);
+  }, []);
 
   // Removes not-yet-fired init listeners so a late event from an earlier init
   // can't flip state after a retry, a clear, or unmount.
@@ -84,7 +95,7 @@ export const useTruecaller = (
         // failure would be dropped on the floor and the hook would hang
         // silently forever.
         const handleInitFailure = (err: TruecallerError) => {
-          setError(err.errorMessage);
+          reportError(err);
           clearInitListeners();
         };
         initListenersRef.current = [
@@ -123,10 +134,10 @@ export const useTruecaller = (
         setError(null);
       }
     } catch (err) {
-      setError((err as Error).message);
+      reportError(libraryError(err));
       setIsTruecallerInitialized(false);
     }
-  }, [clearInitListeners]);
+  }, [clearInitListeners, reportError]);
 
   useEffect(() => clearInitListeners, [clearInitListeners]);
 
@@ -149,9 +160,8 @@ export const useTruecaller = (
   useEffect(() => {
     if (!isTruecallerInitialized) return;
 
-    const reportError = (err: TruecallerError) => setError(err.errorMessage);
     const reportFailure = (err: TruecallerError) => {
-      setError(err.errorMessage);
+      reportError(err);
       setUserProfile(null);
     };
     const showProfile = async (load: () => Promise<TruecallerUserProfile>) => {
@@ -159,12 +169,13 @@ export const useTruecaller = (
         setUserProfile(await load());
         setError(null);
       } catch (err) {
-        reportFailure({ errorMessage: (err as Error).message });
+        reportFailure(libraryError(err));
       }
     };
 
     let subscriptions: EventSubscription[] = [];
     if (Platform.OS === 'android') {
+      const isInitPending = () => initListenersRef.current.length > 0;
       subscriptions = [
         DeviceEventEmitter.addListener(
           TRUECALLER_ANDROID_EVENTS.SUCCESS,
@@ -184,11 +195,15 @@ export const useTruecaller = (
         ),
         DeviceEventEmitter.addListener(
           TRUECALLER_ANDROID_EVENTS.FAILURE,
-          reportFailure
+          (err: TruecallerError) => {
+            if (!isInitPending()) reportFailure(err);
+          }
         ),
         DeviceEventEmitter.addListener(
           TRUECALLER_ANDROID_EVENTS.ERROR,
-          reportError
+          (err: TruecallerError) => {
+            if (!isInitPending()) reportError(err);
+          }
         ),
         DeviceEventEmitter.addListener(
           TRUECALLER_ANDROID_EVENTS.VERIFICATION_REQUIRED,
@@ -215,15 +230,14 @@ export const useTruecaller = (
     }
 
     return () => subscriptions.forEach((s) => s.remove());
-  }, [isTruecallerInitialized]);
+  }, [isTruecallerInitialized, reportError]);
 
   const openTruecallerForVerification = useCallback(async () => {
-    if (!isTruecallerInitialized) {
-      setError('SDK is not initialized. Call initializeSDK first.');
-      return;
-    }
-
+    setError(null);
     try {
+      if (!isTruecallerInitialized) {
+        throw new Error('SDK is not initialized. Call initializeSDK first.');
+      }
       if (!(await isSdkUsable())) {
         throw new Error('Truecaller SDK is not usable on this device');
       }
@@ -236,16 +250,14 @@ export const useTruecaller = (
         await TruecallerIOS.requestProfile();
       }
     } catch (err) {
-      setError((err as Error).message);
+      reportError(libraryError(err));
     }
-  }, [isTruecallerInitialized]);
+  }, [isTruecallerInitialized, reportError]);
 
   const clearTruecallerSdk = useCallback(() => {
-    if (Platform.OS === 'android') {
-      clearInitListeners();
-      TruecallerAndroidModule.clearSdk();
-      setIsTruecallerInitialized(false);
-    }
+    clearInitListeners();
+    if (Platform.OS === 'android') TruecallerAndroidModule.clearSdk();
+    setIsTruecallerInitialized(false);
   }, [clearInitListeners]);
 
   return {
